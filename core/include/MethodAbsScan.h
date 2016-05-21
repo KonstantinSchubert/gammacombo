@@ -121,6 +121,7 @@ class MethodAbsScan
 		void 							setXscanRange(float min, float max);
 		void 							setYscanRange(float min, float max);
 		void							calcCLintervalsSimple();
+		void							calcCL_s_intervalsSimple();
 		const std::pair<double, double> getBorders(const TGraph& graph, const double confidence_level, bool qubic=false);
 
 		vector<RooSlimFitResult*> allResults;           ///< All fit results we encounter along the scan.

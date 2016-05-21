@@ -551,6 +551,7 @@ void MethodAbsScan::calcCLintervals()
 		cout 	<< "MethodAbsScan::calcCLintervals() : Solutions vector empty. "
 								<<"Using simple method with  linear splines."<<endl;;
 		this->calcCLintervalsSimple();
+        this->calcCL_s_intervalsSimple();
 		return;
 	}
 
@@ -1302,6 +1303,43 @@ void MethodAbsScan::calcCLintervalsSimple()
     if ( c==1 ) clintervals2sigma.push_back(cli);
     std::cout<<"borders at "<<levels[c]<<"  [ "<<borders.first<<" : "<<borders.second<<"]";
 	cout << ", " << methodName << " (simple boundary scan)" << endl;
+  }
+
+}
+
+void MethodAbsScan::calcCL_s_intervalsSimple()
+{
+ 
+  clintervals1sigma.clear(); 
+  clintervals2sigma.clear();
+
+  // this is a bit hacky. 
+  // It only works for upper limits on a parameter that might be zero.
+  // Basiaclly, for a normal confidence interval, the  interval border is reached when the p-Value of the hypothesis is smaller than 1-CL
+  // For a CL_s confidence interval, the  interval border is reached when the p-Value of the hypothesis divided by 
+  // the p-value of the NULL hypothesis, is smaller than 1-CL.
+  // The result of this definition is that the interval gets bigger if the p-Value of the NULL hypothesis is small
+  // This prevents us from getting too close or even reaching the the NULL hypothesis with our upper limit, 
+  // because that would mean that the p-Value of the NULL hypothesis is small and the whole fraction would go to one.
+  //
+  // Instead of dividing, we equivalently multiply our (1- levels[]) p -values with the p-value of the NULL hypothesis and the calculate back 
+
+  double pValue_null_hypothesis = this->hCL->GetAt(1); // 0 is underflow hCL contains p-Values (!)
+  std::cout<<pValue_null_hypothesis<<std::endl;
+  // p_cls = p * p_0 -> (1- CL_cls) = (1- CL) * p_0 -> Cl_cls = 1-( (1- CL) * p_0 )
+  double levels[2] = { 1- ((1-0.6827) * pValue_null_hypothesis), 1- ((1-0.95) * pValue_null_hypothesis)};
+  double levels_nominal[2] = {0.6827, 0.95};
+  for (int c=0;c<2;c++){
+    const std::pair<double, double> borders = getBorders(TGraph(this->hCL), levels[c]);
+    CLInterval cli;
+    cli.pvalue = 1. - levels[c];
+    cli.min = borders.first;
+    cli.max = borders.second;
+    cli.central = -1;
+    if ( c==0 ) clintervals1sigma.push_back(cli);
+    if ( c==1 ) clintervals2sigma.push_back(cli);
+    std::cout<<"CL_s borders at "<<levels_nominal[c]<<"  [ "<<borders.first<<" : "<<borders.second<<"]";
+    cout << ", " << methodName << " (simple boundary scan)" << endl;
   }
 
 }
