@@ -66,6 +66,7 @@ public:
 
   void                  print();
   void                  printParameters();
+  void                  plot(TString path, RooDataSet* dataToPlot);
   inline  bool          areObservablesSet(){ return areObsSet; };
   inline  bool          areParametersSet(){ return areParsSet; };
   inline  bool          isPdfInitialized(){ return isPdfSet; };

@@ -7,6 +7,11 @@
  **/
 
 #include "PDF_Datasets.h"
+#include "RooPlot.h"
+#include "RooRealVar.h"
+#include "RooArgSet.h"
+#include "TCanvas.h"
+#include "TROOT.h"
 
 
 PDF_Datasets::PDF_Datasets(RooWorkspace* w, int nObs, OptParser* opt) 
@@ -271,6 +276,9 @@ void   PDF_Datasets::generateToys(int SeedShift) {
   // if(this->toyObservables) delete this->toyObservables;
   this->toyObservables  = toys; 
   this->isToyDataSet    = kTRUE;
+  if(toys->numEntries() == 0 ){
+    std::cout << "WARNING in PDF_Datasets::generateToys: Zero events generated" << std::endl;
+  }
 }
 
 /*! \brief Initializes the random generator
@@ -299,3 +307,19 @@ void PDF_Datasets::initializeRandomGenerator(int seedShift){
 }
 
 
+void PDF_Datasets::plot(TString path, RooDataSet* dataToPlot){
+  std::cout<<path<<std::endl;
+  if(dataToPlot->numEntries() > 0){
+    gROOT->SetBatch(true);
+    const RooArgSet* firstArgSet = dataToPlot->get(0);
+    RooRealVar* mass = (RooRealVar*) firstArgSet->first();
+    RooPlot* plot = mass->frame();
+    dataToPlot->plotOn(plot);
+    this->pdf->plotOn(plot);
+    TCanvas c("c","c",1024, 768);
+    plot->Draw();
+    c.SaveAs(path);
+  } else {
+    std::cout << "WARNING in PDF_Datasets::plot cannot plot because dataset has no events" << std::endl;
+  }
+}

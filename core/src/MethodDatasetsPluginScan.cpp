@@ -633,7 +633,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
     // don't add half the bin size. try to solve this within plotting method
 
     float scanpoint = parameterToScan_min + (parameterToScan_max-parameterToScan_min)*(double)i/((double)nPoints1d-1);
-	
+  
     toyTree.scanpoint = scanpoint;
     
     if(arg->debug) cout << "DEBUG in MethodDatasetsPluginScan::scan1d() - scanpoint calculated in scanpoint " << i+1 << " as: " << scanpoint << endl;
@@ -646,6 +646,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
     }
 
     if(doProbScanOnly){
+      std::cout<<scanpoint<<std::endl;
       // FIT TO REAL DATA WITH FIXED HYPOTHESIS(=SCANPOINT).
       // THIS GIVES THE NUMERATOR FOR THE PROFILE LIKELIHOOD AT THE GIVEN HYPOTHESIS
       // THE RESULTING NUISANCE PARAMETERS TOGETHER WITH THE GIVEN HYPOTHESIS ARE ALSO 
@@ -657,7 +658,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
       parameterToScan->setConstant(true);
       
       RooFitResult *result = this->loadAndFit(kFALSE,this->pdf); // false -> fit on data
-      // RooFitResult *result = this->pdf->fit(kFALSE); // false -> fit on data
+      this->pdf->plot("prob_fit_at"+std::to_string(scanpoint*1e9)+".pdf",pdf->getData());
       assert(result);
       if(arg->debug){ 
         cout << "DEBUG in MethodDatasetsPluginScan::scan1d() - minNll data scan fix " << 2*result->minNll() << endl;
@@ -686,14 +687,19 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
       toyTree.statusScanData  = this->getParValAtScanpoint(scanpoint,"statusScanData");
       toyTree.chi2min         = this->getParValAtScanpoint(scanpoint,"chi2min");
       toyTree.covQualScanData = this->getParValAtScanpoint(scanpoint,"covQualScanData");
+
     }
 
     // After doing the fit with the parameter of interest constrained to the scanpoint,
     // we are now saving the fit values of the nuisance parameters. These values will be
     // used to generate toys according to the PLUGIN method.
-    RooArgSet allVars = w->allVars();
+
+    THIS DOES NOT WORK ANY MORE BECAUSE WE DO NO LONGER DO THE PROB FIT BEFORE THIS POINT HERE
+    THIS DOES NOT WORK ANY MORE SINCE WE 
+    WE NEED TO DP  USE SOMETHING LIKE 
+    getParevolPoint(scanpoint); WHICH IS NOT YET IMPLEMENTED
     TString plhName = Form("profileLHPoint_%i",i);
-    w->saveSnapshot(plhName,allVars);
+    w->saveSnapshot(plhName, w->allVars());
 
     RooDataSet* parsGlobalMinScanPoint = new RooDataSet("parsGlobalMinScanPoint", "parsGlobalMinScanPoint", *w->set(pdf->getParName()));
     parsGlobalMinScanPoint->add(*w->set(pdf->getParName()));
@@ -725,6 +731,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
     }
     
     if(doProbScanOnly) nToys = 0;
+    pdf->plot("after_snapshot.pdf",pdf->getData());
     for ( int j = 0; j<nToys; j++ )
     {
       
@@ -741,6 +748,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
 
       this->pdf->generateToys(); // this is generating the toy dataset
       this->pdf->generateToysGlobalObservables(); // this is generating the toy global observables and saves globalObs in snapshot
+      pdf->plot("after_generate"+std::to_string(j)+".pdf",pdf->getToyObservables());
 
       // \todo: comment the following back in once I know how we do thiat
       //      t.storeParsGau( we need to pass a rooargset of the means of the global observables here);  
@@ -760,6 +768,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
       RooFitResult* r   = this->loadAndFit(kTRUE,this->pdf); // kTrue makes sure the fit is to toy data and to toy global observables
       // RooFitResult* r   = this->pdf->fit(kTRUE); // kTrue makes sure the fit is to toy data and to toy global observables
       assert(r);
+      pdf->plot("fixedtoys.pdf",pdf->getToyObservables());
       pdf->setMinNllScan(pdf->minNll);
 
       if (! std::isfinite(pdf->getMinNllScan())) {
@@ -862,7 +871,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
       
       
       //
-      // 2. Fit to toys with free parameter of interest
+      // 3. Fit to toys with free parameter of interest
       //
       if(arg->debug)cout << "DEBUG in MethodDatasetsPluginScan::scan1d() - perform free toy fit" << endl;
       // Use parameters from the scanfit to data
@@ -874,6 +883,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
       // Fit
       // pdf->setFitStrategy(0);
       RooFitResult* r1  = this->loadAndFit(kTRUE,this->pdf); // kTrue makes sure the fit is to toy data and to toy global observables
+      pdf->plot("freetoys.pdf",pdf->getToyObservables());
       assert(r1);
       pdf->setMinNllFree(pdf->minNll);
       toyTree.chi2minGlobalToy = 2*r1->minNll();
@@ -1127,6 +1137,7 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
         cout << "+++++ > try to fit with different starting values" << endl;
         cout << "+++++ > dChi2: " << toyTree.chi2minToy-toyTree.chi2minGlobalToy << endl; 
         cout << "+++++ > dChi2PDF: " << 2*(pdf->getMinNllScan()-pdf->getMinNllFree()) << endl;
+        pdf->plot("stillnegative.pdf",pdf->getToyObservables());
         Utils::setParameters(this->pdf->getWorkspace(), pdf->getParName(), parsAfterScanFit->get(0));
         if(parameterToScan->getVal() < 1e-13) parameterToScan->setVal(0.67e-12);
         parameterToScan->setConstant(false); 
@@ -1156,7 +1167,6 @@ int MethodDatasetsPluginScan::scan1d(int nRun)
               << "===== > status for pdfResult: " << pdf->getFitStatus() << endl
               << "===== > status for fitResult: " << r1->status() << endl;
       }
-
       toyTree.chi2minGlobalToy    = 2*r1->minNll(); //2*r1->minNll();
       toyTree.chi2minGlobalToyPDF = 2*pdf->getMinNllFree(); //2*r1->minNll();
       toyTree.statusFreePDF       = pdf->getFitStatus(); //r1->status();
