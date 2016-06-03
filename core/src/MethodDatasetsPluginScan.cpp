@@ -456,7 +456,6 @@ void MethodDatasetsPluginScan::readScan1dTrees(int runMin, int runMax, TString f
     if ( inPhysicalRegion && t.chi2minGlobalToy > this->chi2minGlobal ){ //t.chi2minGlobal ){
       h_gof->Fill(t.scanpoint);
     }
-    std::cout<<"valid"<<valid<<std::endl;
     // all toys
     if ( valid || doProbScanOnly){//inPhysicalRegion ){
       // not efficient! TMath::Prob evaluated each toy, only needed once.
@@ -688,15 +687,6 @@ void MethodDatasetsPluginScan::scan1d_prob()
     if(arg->debug) cout << "DEBUG in MethodDatasetsPluginScan::scan1d() - parameters value stored in ToyTree for scanpoint " << i+1 << endl;
     this->pdf->deleteNLL();
 
-
-    // After doing the fit with the parameter of interest constrained to the scanpoint,
-    // we are now saving the fit values of the nuisance parameters. These values will be
-    // used to generate toys according to the PLUGIN method.
-
-    RooDataSet* parsGlobalMinScanPoint = new RooDataSet("parsGlobalMinScanPoint", "parsGlobalMinScanPoint", *w->set(pdf->getParName()));
-    parsGlobalMinScanPoint->add(*w->set(pdf->getParName()));
-    
-    if(arg->debug) cout << "DEBUG in MethodDatasetsPluginScan::scan1d() - stored parameter values for scanpoint " << i+1 << endl;
       
 
     // get the chi2 of the data
@@ -728,8 +718,6 @@ void MethodDatasetsPluginScan::scan1d_prob()
   
     // reset
     setParameters(w, pdf->getParName(), parsFunctionCall->get(0));
-    //delete result;
-    delete parsGlobalMinScanPoint;
     //setParameters(w, pdf->getObsName(), obsDataset->get(0));
     toyTree.writeToFile();
   } // End of npoints loop
@@ -843,8 +831,6 @@ void MethodDatasetsPluginScan::scan1d_plugin(int nRun)
     toyTree.covQualScanData = this->getParValAtScanpoint(scanpoint,"covQualScanData");
 
 
-    RooDataSet* parsGlobalMinScanPoint = new RooDataSet("parsGlobalMinScanPoint", "parsGlobalMinScanPoint", *w->set(pdf->getParName()));
-    parsGlobalMinScanPoint->add(*w->set(pdf->getParName()));
     
     if(arg->debug) cout << "DEBUG in MethodDatasetsPluginScan::scan1d() - stored parameter values for scanpoint " << i+1 << endl;
       
@@ -872,11 +858,16 @@ void MethodDatasetsPluginScan::scan1d_plugin(int nRun)
       << " filled in bin " << i+1 << " at: " << scanpoint << endl;
     }
     
-    pdf->plot("after_snapshot.pdf",pdf->getData());
+
+    // pdf->plot("after_snapshot.pdf",pdf->getData());
+
+    // Load the parameter values from the fit to data with fixed parameter of interest.
+    // These ehre are not only the nuisance parameter values, but all values.
+    // However, just the nuisance parameters would in principle be enough.
+    const RooArgSet* prob_fit_result_values = this->getParevolPointByIndex(i, probResFile);  
+
     for ( int j = 0; j<nToys; j++ )
     {
-      
-
       if(arg->debug) cout << ">> new toy\n" << endl;
       this->pdf->setMinNllFree(0);
       this->pdf->setMinNllScan(0);
@@ -884,17 +875,13 @@ void MethodDatasetsPluginScan::scan1d_plugin(int nRun)
       // 1. Generate toys
 
       // Set nuisance parameters to the values from the fit to data with fixed parameter of interest.
-      // This is called the PLUGIN method.
-  
-      // these are not only the nuisance parameter values, but all values
-      const RooArgSet* prob_fit_result_values = this->getParevolPointByIndex(i, probResFile);
-      // assign the loaded parameter values to the parameters owned by the fit function.
+      // This is called the PLUGIN method.(Here, we are setting ALL parameters, not only the nuisance ones)
       w->allVars() = *prob_fit_result_values;
 
 
       this->pdf->generateToys(); // this is generating the toy dataset
       this->pdf->generateToysGlobalObservables(); // this is generating the toy global observables and saves globalObs in snapshot
-      pdf->plot("after_generate"+std::to_string(j)+".pdf",pdf->getToyObservables());
+      // pdf->plot("after_generate"+std::to_string(j)+".pdf",pdf->getToyObservables());
 
       // \todo: comment the following back in once I know how we do thiat
       //      t.storeParsGau( we need to pass a rooargset of the means of the global observables here);  
@@ -914,7 +901,7 @@ void MethodDatasetsPluginScan::scan1d_plugin(int nRun)
       RooFitResult* r   = this->loadAndFit(kTRUE,this->pdf); // kTrue makes sure the fit is to toy data and to toy global observables
       // RooFitResult* r   = this->pdf->fit(kTRUE); // kTrue makes sure the fit is to toy data and to toy global observables
       assert(r);
-      pdf->plot("fixedtoys.pdf",pdf->getToyObservables());
+      // pdf->plot("fixedtoys.pdf",pdf->getToyObservables());
       pdf->setMinNllScan(pdf->minNll);
 
       if (! std::isfinite(pdf->getMinNllScan())) {
@@ -1031,7 +1018,7 @@ void MethodDatasetsPluginScan::scan1d_plugin(int nRun)
       // Fit
       // pdf->setFitStrategy(0);
       RooFitResult* r1  = this->loadAndFit(kTRUE,this->pdf); // kTrue makes sure the fit is to toy data and to toy global observables
-      pdf->plot("freetoys.pdf",pdf->getToyObservables());
+      // pdf->plot("freetoys.pdf",pdf->getToyObservables());
       assert(r1);
       pdf->setMinNllFree(pdf->minNll);
       toyTree.chi2minGlobalToy = 2*r1->minNll();
@@ -1364,7 +1351,7 @@ void MethodDatasetsPluginScan::scan1d_plugin(int nRun)
     // reset
     setParameters(w, pdf->getParName(), parsFunctionCall->get(0));
     //delete result;
-    delete parsGlobalMinScanPoint;
+    
     //setParameters(w, pdf->getObsName(), obsDataset->get(0));
     toyTree.writeToFile();
   } // End of npoints loop

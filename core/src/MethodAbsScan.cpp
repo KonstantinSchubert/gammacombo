@@ -1287,7 +1287,7 @@ void MethodAbsScan::calcCLintervalsSimple()
   clintervals1sigma.clear(); 
   clintervals2sigma.clear();
   
-  double levels[2] = {0.6827, 0.9545};
+  double levels[2] = {0.6827, 0.95};
   for (int c=0;c<2;c++){
     const std::pair<double, double> borders = getBorders(TGraph(this->hCL), levels[c]);
     CLInterval cli;
