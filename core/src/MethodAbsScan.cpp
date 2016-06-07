@@ -1321,7 +1321,7 @@ void MethodAbsScan::calcCL_s_intervalsSimple()
   // Instead of dividing, we equivalently multiply our (1- levels[]) p -values with the p-value of the NULL hypothesis and the calculate back 
 
   double pValue_null_hypothesis = this->hCL->GetAt(1); // 0 is underflow hCL contains p-Values (!)
-  std::cout<<pValue_null_hypothesis<<std::endl;
+  std::cout << "p-value of null hypothesis" << pValue_null_hypothesis << ", " << methodName << " (simple boundary scan)" << std::endl;
   // p_cls = p * p_0 -> (1- CL_cls) = (1- CL) * p_0 -> Cl_cls = 1-( (1- CL) * p_0 )
   double levels[2] = { 1- ((1-0.6827) * pValue_null_hypothesis), 1- ((1-0.95) * pValue_null_hypothesis)};
   double levels_nominal[2] = {0.6827, 0.95};
