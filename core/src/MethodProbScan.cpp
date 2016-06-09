@@ -184,15 +184,27 @@ int MethodProbScan::scan1d(bool fast, bool reverse)
 			if ( scanUp )
 			{
 				scanvalue = min + (max-min)*(double)i/(double)nPoints1d + hCL->GetBinWidth(1)/2.;
+				// first scan value is half a bin above the min point!
 				if ( scanvalue < scanStart ) continue;
 				if ( scanvalue > scanStop ) break;
 			}
 			else
 			{
 				scanvalue = max - (max-min)*(double)(i+1)/(double)nPoints1d + hCL->GetBinWidth(1)/2.;
+				// first scan value is half a bin below the max point
 				if ( scanvalue > scanStart ) continue;
 				if ( scanvalue < scanStop ) break;
 			}
+
+			std::cout<<scanvalue<<std::endl;
+
+			// it seems that the scan values (== scan points!) are in the middle of the histogram bins,
+			//and the scan range seems to delimit the left edge of the first bin until the right edge of the last bin
+			// This means that the first scan point is half a bin above the lower edge of the passed range, and the last scan point
+			// is half a bin below the right passed edge. This means if we pass a range of 0-10 and 10 scan points, we get scan points
+			// 0.5, 1.5, 2.5, ... and so on.
+			// The question is if we want to keep this behaviour or not.
+			// I suggest that we change it, since it is very unintuitive that the zero hypotheis is never actually tested when passing the range 0-10
 
 			// disable drag mode
 			// (the improve method doesn't work with drag mode as parameter run
