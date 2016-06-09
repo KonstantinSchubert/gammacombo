@@ -61,10 +61,10 @@ class MethodAbsScan
         inline Combiner*                getCombiner() const {return combiner;};
         int                             getDrawSolution();
         bool                     getFilled(){return drawFilled;};
-        TH1F*                    getHCL(){return hCL;};
-        TH2F*                    getHCL2d(){return hCL2d;};
-        TH1F*                    getHchisq(){return hChi2min;};
-        TH2F*                    getHchisq2d(){return hChi2min2d;};
+        std::vector<pair<double, double>>      getHCL(){return hCL;};
+        std::vector<pair<double[2], double>>   getHCL2d(){return hCL2d;};
+        std::vector<pair<double, double>>      getHchisq(){return hChi2min;};
+        std::vector<pair<double[2], double>>   getHchisq2d(){return hChi2min2d;};
         int                      getLineColor(){return lineColor;};
         int                      getLineStyle(){return lineStyle;};
         TString                  getMethodName() const {return methodName;};
@@ -85,10 +85,10 @@ class MethodAbsScan
         float                           getScanVar2Solution(int i=0);
         inline vector<RooSlimFitResult*>    getSolutions(){return solutions;};
         RooSlimFitResult*                   getSolution(int i=0);
-        const RooArgSet*         getTheory(){return w->set(thName);}
-        int                      getTextColor(){return textColor;};
-        TString                  getTitle(){return title;};
-        RooWorkspace*            getWorkspace(){return w;};
+        const RooArgSet*                getTheory(){return w->set(thName);}
+        int                             getTextColor(){return textColor;};
+        TString                         getTitle(){return title;};
+        RooWorkspace*                   getWorkspace(){return w;};
         virtual void                    initScan();
         void                            loadParameters(RooSlimFitResult *r);
         bool                            loadSolution(int i=0);
@@ -135,6 +135,7 @@ class MethodAbsScan
     protected:
 
         void    sortSolutions();
+        double  getPValueTTestStatistic(double test_statistic_value);
 
         TString name;       ///< basename, e.g. ggsz
         TString title;      ///< nice string for the legends
@@ -157,10 +158,10 @@ class MethodAbsScan
         RooDataSet* obsDataset;         ///< save the nominal observables so we can restore them after we have fitted toys
         RooDataSet* startPars;          ///< save the start parameter values before any scan
         RooFitResult* globalMin;        ///< parameter values at a global minimum
-        map<double, double>    hCL;                 ///< p value map
-        map<double[2], double> hCL2d;               ///< p value map
-        map<double, double>    hChi2min;            ///< map for the chi2min values before Prob()
-        map<double[2], double> hChi2min2d;          ///< map for the chi2min values before Prob()
+        std::vector<pair<double, double>>    hCL;      ///< p value map std::vector<pair<double scanpoint, p-value>>
+        std::vector<pair<double[2], double>> hCL2d;               ///< p value map
+        std::vector<pair<double, double>>    hChi2min;            ///< map for the chi2min values before Prob()
+        std::vector<pair<double[2], double>> hChi2min2d;          ///< map for the chi2min values before Prob()
         double chi2minGlobal;           ///< chi2 value at global minimum
         bool chi2minGlobalFound;        ///< flag to avoid finding minimum twice
         int lineColor;

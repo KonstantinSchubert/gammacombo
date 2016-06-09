@@ -56,10 +56,6 @@
 		lineStyle(0),
 		lineColor(kBlue-8),
 		textColor(kBlack),
-		hCL(0),
-		hCL2d(0),
-		hChi2min(0),
-		hChi2min2d(0),
 		obsDataset(NULL),
 		startPars(0),
 		globalMin(0),
@@ -77,10 +73,6 @@ MethodAbsScan::~MethodAbsScan()
 	for ( int i=0; i<allResults.size(); i++ ){
 		if ( allResults[i] ) delete allResults[i];
 	}
-	if ( hCL ) delete hCL;
-	if ( hCL2d ) delete hCL2d;
-	if ( hChi2min ) delete hChi2min;
-	if ( hChi2min2d ) delete hChi2min2d;
 	if ( obsDataset ) delete obsDataset;
 	if ( startPars ) delete startPars;
 	if ( globalMin ) delete globalMin;
@@ -208,16 +200,10 @@ void MethodAbsScan::initScan()
 	if ( !m_xrangeset && arg->scanrangeMin != arg->scanrangeMax ){
 		setXscanRange(arg->scanrangeMin,arg->scanrangeMax);
 	}
-	setLimit(w, scanVar1, "scan");
-	float min1 = par1->getMin();
-	float max1 = par1->getMax();
-	hCL = new TH1F("hCL"+getUniqueRootName(), "hCL"+pdfName, nPoints1d, min1, max1);
-	if ( hChi2min ) delete hChi2min;
-	hChi2min = new TH1F("hChi2min"+getUniqueRootName(), "hChi2min"+pdfName, nPoints1d, min1, max1);
-
-	// fill the chi2 histogram with very unlikely values such
-	// that inside scan1d() the if clauses work correctly
-	for ( int i=1; i<=nPoints1d; i++ ) hChi2min->SetBinContent(i,1e6);
+	// setLimit(w, scanVar1, "scan");
+	// float min1 = par1->getMin();
+	// float max1 = par1->getMax();
+	
 
 	if ( scanVar2!="" )
 	{
@@ -237,13 +223,9 @@ void MethodAbsScan::initScan()
 		if ( !m_yrangeset && arg->scanrangeyMin != arg->scanrangeyMax ){
 			setYscanRange(arg->scanrangeyMin,arg->scanrangeyMax);
 		}
-		setLimit(w, scanVar2, "scan");
-		float min2 = par2->getMin();
-		float max2 = par2->getMax();
-		hCL2d      = new TH2F("hCL2d"+getUniqueRootName(),      "hCL2d"+pdfName, nPoints2dx, min1, max1, nPoints2dy, min2, max2);
-		hChi2min2d = new TH2F("hChi2min2d"+getUniqueRootName(), "hChi2min",      nPoints2dx, min1, max1, nPoints2dy, min2, max2);
-		for ( int i=1; i<=nPoints2dx; i++ )
-			for ( int j=1; j<=nPoints2dy; j++ ) hChi2min2d->SetBinContent(i,j,1e6);
+		// setLimit(w, scanVar2, "scan");
+		// float min2 = par2->getMin();
+		// float max2 = par2->getMax();
 	}
 
 	// Set up storage for the fit results.
@@ -1337,4 +1319,20 @@ const std::pair<double, double> MethodAbsScan::getBorders(const TGraph& graph, c
     }
   }
   return std::pair<double, double>(lower_edge,upper_edge);
+}
+
+double MethodAbsScan::getPValueTTestStatistic(double test_statistic_value){
+    if ( test_statistic_value > 0){
+      // this is the normal case
+      return TMath::Prob(test_statistic_value,1);
+    } else {
+      cout << "MethodDatasetsPluginScan::scan1d_prob() : WARNING : Test statistic is negative, forcing it to zero" << std::endl
+           << "Fit at current scan point has higher likelihood than free fit." << std::endl
+           << "This should not happen except for very small underflows when the scan point is at the best fit value. " << std::endl
+           << "Value of test statistic is " << test_statistic_value << std::endl
+           << "An equal upwards fluctuaion corresponds to a p value of " << TMath::Prob(abs(test_statistic_value),1) << std::endl;
+           // TMath::Prob will return 0 if the Argument is slightly below zero. As we are working with a float-zero we can not rely on it here:
+           // TMath::Prob( 0 ) returns 1
+      return 1.;
+    }
 }

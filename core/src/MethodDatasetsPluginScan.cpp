@@ -713,21 +713,6 @@ void MethodDatasetsPluginScan::scan1d_prob()
   delete parsFunctionCall;
 }
 
-double MethodDatasetsPluginScan::getPValueTTestStatistic(double test_statistic_value){
-    if ( test_statistic_value > 0){
-      // this is the normal case
-      return TMath::Prob(test_statistic_value,1);
-    } else {
-      cout << "MethodDatasetsPluginScan::scan1d_prob() : WARNING : Test statistic is negative, forcing it to zero" << std::endl
-           << "Fit at current scan point has higher likelihood than free fit." << std::endl
-           << "This should not happen except for very small underflows when the scan point is at the best fit value. " << std::endl
-           << "Value of test statistic is " << test_statistic_value << std::endl
-           << "An equal upwards fluctuaion corresponds to a p value of " << TMath::Prob(abs(test_statistic_value),1) << std::endl;
-           // TMath::Prob will return 0 if the Argument is slightly below zero. As we are working with a float-zero we can not rely on it here:
-           // TMath::Prob( 0 ) returns 1
-      return 1.;
-    }
-}
 
 ///
 /// Perform the 1d Plugin scan.

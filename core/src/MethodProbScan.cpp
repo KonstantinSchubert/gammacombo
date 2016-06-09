@@ -23,34 +23,34 @@ MethodProbScan::MethodProbScan()
 	scanDisableDragMode = false;
 	nScansDone					= 0;
 }
-///
-/// 'Dummy' constructor
-/// no scan needed here, hCL histogram is provided externally
-///
-MethodProbScan::MethodProbScan(PDF_Datasets* PDF, OptParser* opt, TH1F* hcl, const TString &fname)
-	: MethodAbsScan(opt)
-{
-	name                = fname;
-	methodName          = "Prob";
-	scanDisableDragMode = false;
-	hCL                 = hcl;
-	combiner            = NULL;
-	w                   = PDF->getWorkspace();
-	name                = PDF->getName();
-	title               = PDF->getTitle();
-	arg                 = opt;
-	scanVar1            = arg->var[0];
-	if ( arg->var.size()>1 ) scanVar2 = arg->var[1];
-	verbose             = arg->verbose;
-	drawSolution        = 0;
-	nPoints1d           = arg->npoints1d;
-	nPoints2dx          = arg->npoints2dx;
-	nPoints2dy          = arg->npoints2dy;
-	pdfName             = PDF->getPdfName();
-	obsName             = PDF->getObsName();
-	parsName            = PDF->getParName();
-	nScansDone					= 0;
-}
+// ///
+// /// 'Dummy' constructor
+// /// no scan needed here, hCL histogram is provided externally
+// ///
+// MethodProbScan::MethodProbScan(PDF_Datasets* PDF, OptParser* opt, TH1F* hcl, const TString &fname)
+// 	: MethodAbsScan(opt)
+// {
+// 	name                = fname;
+// 	methodName          = "Prob";
+// 	scanDisableDragMode = false;
+// 	hCL                 = hcl;
+// 	combiner            = NULL;
+// 	w                   = PDF->getWorkspace();
+// 	name                = PDF->getName();
+// 	title               = PDF->getTitle();
+// 	arg                 = opt;
+// 	scanVar1            = arg->var[0];
+// 	if ( arg->var.size()>1 ) scanVar2 = arg->var[1];
+// 	verbose             = arg->verbose;
+// 	drawSolution        = 0;
+// 	nPoints1d           = arg->npoints1d;
+// 	nPoints2dx          = arg->npoints2dx;
+// 	nPoints2dy          = arg->npoints2dy;
+// 	pdfName             = PDF->getPdfName();
+// 	obsName             = PDF->getObsName();
+// 	parsName            = PDF->getParName();
+// 	nScansDone					= 0;
+// }
 
 MethodProbScan::~MethodProbScan()
 {
@@ -92,12 +92,9 @@ int MethodProbScan::scan1d(bool fast, bool reverse)
 	setLimit(w, scanVar1, "scan");
 	RooRealVar *par = w->var(scanVar1);
 	assert(par);
-	float min = hCL->GetXaxis()->GetXmin();
-	float max = hCL->GetXaxis()->GetXmax();
-	if ( fabs(par->getMin()-min)>1e-6 || fabs(par->getMax()-max)>1e-6 ){
-		cout << "MethodProbScan::scan1d() : WARNING : Scan range was changed after initScan()" << endl;
-		cout << "                           was called so the old range will be used." << endl;
-	}
+	float min = par1->getMin();
+	float max = par1->getMax();
+
 	if ( arg->verbose ){
 		cout << "\nProb configuration:" << endl;
 		cout << "  combination : " << title << endl;
@@ -178,33 +175,26 @@ int MethodProbScan::scan1d(bool fast, bool reverse)
 
 		if ( fast && ( j==1 || j==3 ) ) continue;
 
+		double stepwidth = (max-min)/(double)(nPoints1d-1);
+		// nPoints1d minus one so if we have e.g. 3 points at (0, 1, 2), we get step width (2-0)/(3-1) = 1
 		for ( int i=0; i<nPoints1d; i++ )
 		{
 			float scanvalue;
+			// first and last scan value match up with upper and lower border of scan range
+
+			double epsilon = stepwidth * 1e-6
 			if ( scanUp )
 			{
-				scanvalue = min + (max-min)*(double)i/(double)nPoints1d + hCL->GetBinWidth(1)/2.;
-				// first scan value is half a bin above the min point!
-				if ( scanvalue < scanStart ) continue;
-				if ( scanvalue > scanStop ) break;
+				scanvalue = min + stepwidth * (double)i
+				if ( scanvalue < scanStart - epsilon ) continue;
+				if ( scanvalue > scanStop + epsilon) break;
 			}
 			else
 			{
-				scanvalue = max - (max-min)*(double)(i+1)/(double)nPoints1d + hCL->GetBinWidth(1)/2.;
-				// first scan value is half a bin below the max point
-				if ( scanvalue > scanStart ) continue;
-				if ( scanvalue < scanStop ) break;
+				scanvalue = max - stepwidth * (double)i;
+				if ( scanvalue > scanStart + epsilon) continue;
+				if ( scanvalue < scanStop -epsilon ) break;
 			}
-
-			std::cout<<scanvalue<<std::endl;
-
-			// it seems that the scan values (== scan points!) are in the middle of the histogram bins,
-			//and the scan range seems to delimit the left edge of the first bin until the right edge of the last bin
-			// This means that the first scan point is half a bin above the lower edge of the passed range, and the last scan point
-			// is half a bin below the right passed edge. This means if we pass a range of 0-10 and 10 scan points, we get scan points
-			// 0.5, 1.5, 2.5, ... and so on.
-			// The question is if we want to keep this behaviour or not.
-			// I suggest that we change it, since it is very unintuitive that the zero hypotheis is never actually tested when passing the range 0-10
 
 			// disable drag mode
 			// (the improve method doesn't work with drag mode as parameter run
@@ -247,26 +237,23 @@ int MethodProbScan::scan1d(bool fast, bool reverse)
 			// If we find a minimum smaller than the old "global" minimum, this means that all
 			// previous 1-CL values are too high.
 			if ( chi2minScan<chi2minGlobal ){
-				if ( arg->verbose ) cout << "MethodProbScan::scan1d() : WARNING : '" << title << "' new global minimum found! "
+				if ( arg->verbose ) cout << "MethodProbScan::scan1d() : ERROR : '" << title << "' new global minimum found! "
 																		<< " chi2minScan=" << chi2minScan << endl;
-				chi2minGlobal = chi2minScan;
-				// recompute previous 1-CL values
-				for ( int k=1; k<=hCL->GetNbinsX(); k++ ){
-					hCL->SetBinContent(k, TMath::Prob(hChi2min->GetBinContent(k)-chi2minGlobal, 1));
-				}
+				exit(EXIT_FAILURE);
 			}
 
 			double deltaChi2 = chi2minScan - chi2minGlobal;
-			double oneMinusCL = TMath::Prob(deltaChi2, 1);
+			double oneMinusCL = getPValueTTestStatistic(deltaChi2);
 
-			// Save the 1-CL value and the corresponding fit result.
-			// But only if better than before!
-			if ( hCL->GetBinContent(hCL->FindBin(scanvalue)) <= oneMinusCL ){
-				hCL->SetBinContent(hCL->FindBin(scanvalue), oneMinusCL);
-				hChi2min->SetBinContent(hCL->FindBin(scanvalue), chi2minScan);
-				int iRes = hCL->FindBin(scanvalue)-1;
-				curveResults[iRes] = r;
-			}
+			// Save the 1-CL value and the corresponding fit result. <- What was the purpose of this???????
+			// But only if better than before!                       <- What was the purpose of this???????
+			// if ( hCL->GetBinContent(hCL->FindBin(scanvalue)) <= oneMinusCL ){ <-- what did this do????
+				hCL[i] = std::make_pair(scanvalue, oneMinusCL);
+				hChi2min[i] = = std::make_pair(scanvalue, chi2minScan);
+			// 	int iRes = hCL->FindBin(scanvalue)-1;
+				int iRes = i; // <- no idea if this is correct
+				curveResults[iRes] = r; 
+			// }
 
 			nStep++;
 		}
@@ -281,10 +268,9 @@ int MethodProbScan::scan1d(bool fast, bool reverse)
 
 	// attempt to correct for undercoverage
 	if (pvalueCorrectorSet) {
-		for ( int k=1; k<=hCL->GetNbinsX(); k++ ){
-			double pvalueProb = hCL->GetBinContent(k);
-			pvalueProb = pvalueCorrector->transform(pvalueProb);
-			hCL->SetBinContent(k, pvalueProb);
+		for ( std::pair<double, double>& scanpoint_pval : hCL ){
+			pvalueProb = pvalueCorrector->transform(scanpoint_pval.second);
+			scanpoint_pval = make_pair(scanpoint_pval.first, pvalueProb);
 		}
 	}
 
